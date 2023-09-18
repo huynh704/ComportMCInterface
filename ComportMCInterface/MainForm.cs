@@ -245,7 +245,7 @@ namespace ComportMCInterface
                 Array.Copy(dataRecv, _ReceiveHeader, 8);
             } while (Array.Equals(_SendHeader, _ReceiveHeader) || _TimeOut > 5000);
             if (_TimeOut > 5000) return -1;
-            else return dataRecv[11] << 8 | dataRecv[12];
+            else return dataRecv[12] << 8 | dataRecv[11];
         }
         #endregion
     }
