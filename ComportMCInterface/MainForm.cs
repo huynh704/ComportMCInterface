@@ -244,6 +244,7 @@ namespace ComportMCInterface
                 _TimeOut = (DateTime.Now - _timeStart).TotalMilliseconds;
                 Array.Copy(dataRecv, _ReceiveHeader, 8);
             } while (Array.Equals(_SendHeader, _ReceiveHeader) || _TimeOut > 5000);
+            Array.Clear(dataRecv, 0, dataRecv.Length);
             if (_TimeOut > 5000) return -1;
             else return dataRecv[12] << 8 | dataRecv[11];
         }
