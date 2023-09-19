@@ -311,7 +311,7 @@ namespace ComportMCInterface
             }
             //Check End code normal == 0
             if ((dataRecv[10] << 8 | dataRecv[9]) != 0) return dataRecv[10] << 8 | dataRecv[9];
-            //Get end point data response
+            //Get endpoint of response data
             int _dataResLeng = ((dataRecv[8] << 8 | dataRecv[7]) - 2) / 2;
             for (int i = 0; i < _dataResLeng; i++)
             {
