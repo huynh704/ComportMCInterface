@@ -12,16 +12,20 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Runtime;
 using System.Security;
+using System.Diagnostics;
+using System.Runtime.InteropServices.WindowsRuntime;
 
 namespace ComportMCInterface
 {
     public partial class MainForm : Form
     {
         string _ComportReceiveData = string.Empty;
+        short[] _Read;
 
         bool _ClientOpen = false;
         byte[] dataRecv;
         byte[] dataSend;
+        bool _bReceiveCom = false; 
         TcpClient _Client = new TcpClient();
         NetworkStream _Stream;
         ASCIIEncoding encoding = new ASCIIEncoding();
@@ -35,32 +39,35 @@ namespace ComportMCInterface
             cmb_PartyBit.SelectedIndex = 0;
             cmb_StopBit.SelectedIndex = 0;
 
-            CheckForIllegalCrossThreadCalls = false;
+            //CheckForIllegalCrossThreadCalls = false;
             Thread _MainReceive = new Thread(MainThread);
             _MainReceive.Start();
             _MainReceive.IsBackground = true;
-            int[] _value = { 1, 2, 3, 4, 5, 6 };
-            WriteDeviceBlock("ZR 1000", _value);
+            //int[] _value = { 1, 2, 3, 4, 5, 6 };
+            //WriteDeviceBlock("ZR 1000", _value);
         }
         private void logDisplay(string message)
         {
             message = message.IndexOf(Environment.NewLine) >= 0 ? message : message + Environment.NewLine;
-            txt_Log.Text += '[' + DateTime.Now.ToString("HH:mm:ss.fff") + "] " + message;
+            this.Invoke(new Action(() =>
+            {
+                txt_Log.Text += '[' + DateTime.Now.ToString("HH:mm:ss.fff") + "] " + message;
+            }));
         }
         private void MainThread()
         {
+            dataRecv = new byte[_Client.ReceiveBufferSize];
             while (true)
             {
                 try
                 {
-                    if (_ClientOpen)
+                    if (_ClientOpen && _Stream.DataAvailable)
                     {
                         dataRecv = new byte[_Client.ReceiveBufferSize];
                         int length = _Stream.Read(dataRecv, 0, dataRecv.Length);
                         string s_receive = encoding.GetString(dataRecv, 0, length);
-                        logDisplay("[Server>]: " + s_receive);
+                        //logDisplay("[Server>]: Receive data complete");
                     }
-                    Thread.Sleep(1);
                 }
                 catch (Exception ex)
                 {
@@ -101,7 +108,7 @@ namespace ComportMCInterface
                 }
             }
             //Server TCP Connect
-            if (!_Client.Connected)
+            if (!_ClientOpen)
             {
                 try
                 {
@@ -126,6 +133,7 @@ namespace ComportMCInterface
             }
             //Check connect
             if (sr_ComPort.IsOpen && _Client.Connected)
+                //if (sr_ComPort.IsOpen)
             {
                 btn_Connect.Text = "Disconnect";
                 btn_Connect.BackColor = Color.LightGreen;
@@ -167,8 +175,19 @@ namespace ComportMCInterface
         private byte[] GetAddress(string address)
         {
             byte[] _Address = new byte[4];
-            string RegisterSymbol = address.Split(' ')[0].Trim();
-            int RegisterBinary = Convert.ToInt16(address.Split(' ')[1].Trim());
+            string RegisterSymbol;
+            int RegisterBinary;
+
+            try
+            {
+                RegisterSymbol = address.Split(' ')[0].Trim();
+                RegisterBinary = Convert.ToInt16(address.Split(' ')[1].Trim());
+            }
+            catch(Exception ex)
+            {
+                logDisplay('[' + ex.Source + "] " +ex.Message + Environment.NewLine + address);
+                return _Address;
+            }
             _Address = BitConverter.GetBytes(RegisterBinary);
             switch (RegisterSymbol)
             {
@@ -197,11 +216,20 @@ namespace ComportMCInterface
                         _Address[3] = 0xA9;
                         break;
                     }
-
+                case "M":
+                    {
+                        _Address[3] = 0x90;
+                        break;
+                    }
+                case "L":
+                    {
+                        _Address[3] = 0x92;
+                        break;
+                    }
             }
             return _Address;
         }
-        private int WriteDeviceBlock(string szDevice, int[] Value)
+        private int WriteDeviceBlock(string szDevice, short[] Value)
         {
             // Setting method for 4E frame
             // 21 byte (Header + Subheader + Access route + Request data + Monitoring timer) + Value.Length * 2 (Request data)
@@ -209,12 +237,12 @@ namespace ComportMCInterface
 
             //Header Subheader Access route
             _WriteBuffer[0] = 0x50; //Header 1byte
-            _WriteBuffer[1] = 0x00; //SubHeader (Free) 6byte
-            _WriteBuffer[2] = 0x00; //SubHeader (Free) 6byte
-            _WriteBuffer[3] = 0x01; //SubHeader (Serial) 6byte
-            _WriteBuffer[4] = 0x00; //SubHeader (Serial) 6byte
-            _WriteBuffer[5] = 0x00; //SubHeader (Fixed) 6byte
-            _WriteBuffer[6] = 0x54; //SubHeader (Fixed) 6byte
+            _WriteBuffer[1] = 0x00; //SubHeader (Free) 2byte
+            _WriteBuffer[2] = 0x00; //SubHeader (Free) 2byte
+            _WriteBuffer[3] = 0xFF; //
+            _WriteBuffer[4] = 0xFF; //
+            _WriteBuffer[5] = 0x03; //
+            _WriteBuffer[6] = 0x00; //
             Array.Copy(BitConverter.GetBytes(Value.Length * 2 + 12), 0, _WriteBuffer, 7, 2); //RequestData (Monitoring timer ~ Request data)Byte
             _WriteBuffer[9] = 0x10; //Monitoring timer (250 ms per value)
             _WriteBuffer[10] = 0x00; //Monitoring timer (250 ms per value)
@@ -231,23 +259,115 @@ namespace ComportMCInterface
                 _WriteBuffer[21 + i * 2] = BitConverter.GetBytes(Value[i])[0];
                 _WriteBuffer[22 + i * 2] = BitConverter.GetBytes(Value[i])[1];
             }
+            Array.Clear(dataRecv, 0, dataRecv.Length);
             _Stream.Write(_WriteBuffer, 0, _WriteBuffer.Length);
             
             //Wait response message
-            byte[] _SendHeader = new byte[8];
-            byte[] _ReceiveHeader = new byte[8];
             double _TimeOut;
-            Array.Copy(_WriteBuffer, _SendHeader, 8);
             DateTime _timeStart = DateTime.Now;
-            do
+            while (dataRecv[0] == 0)
             {
                 _TimeOut = (DateTime.Now - _timeStart).TotalMilliseconds;
-                Array.Copy(dataRecv, _ReceiveHeader, 8);
-            } while (Array.Equals(_SendHeader, _ReceiveHeader) || _TimeOut > 5000);
-            Array.Clear(dataRecv, 0, dataRecv.Length);
-            if (_TimeOut > 5000) return -1;
-            else return dataRecv[12] << 8 | dataRecv[11];
+                if (_TimeOut > 5000) return -1;
+            }
+            return dataRecv[12] << 8 | dataRecv[11];
         }
+        private int ReadDeviceBlock(string szDevice, int length, out short[] Value)
+        {
+            // Setting method for 4E frame
+            // 21 byte (Header + Subheader + Access route + Request data + Monitoring timer) + Value.Length * 2 (Request data)
+            byte[] _WriteBuffer = new byte[21];
+            short[] _ReadBuffer = new short[length];
+            Value = new short[length];
+
+            //Header Subheader Access route
+            _WriteBuffer[0] = 0x50; //Header 1byte
+            _WriteBuffer[1] = 0x00; //SubHeader (Free) 2byte
+            _WriteBuffer[2] = 0x00; //SubHeader (Free) 2byte
+            _WriteBuffer[3] = 0xFF; //
+            _WriteBuffer[4] = 0xFF; //
+            _WriteBuffer[5] = 0x03; //
+            _WriteBuffer[6] = 0x00; //
+            Array.Copy(BitConverter.GetBytes(12), 0, _WriteBuffer, 7, 2); //RequestData (Monitoring timer ~ Request data)Byte
+            _WriteBuffer[9] = 0x10; //Monitoring timer (250 ms per value)
+            _WriteBuffer[10] = 0x00; //Monitoring timer (250 ms per value)
+            //Message format batch write (0x00, 0x00, 0x14, 0x01)
+            //Message format batch read (0x00, 0x00, 0x04, 0x01)
+            _WriteBuffer[11] = 0x01; // Command 4C/3C/4E/3E frame
+            _WriteBuffer[12] = 0x04; // Command 4C/3C/4E/3E frame
+            _WriteBuffer[13] = 0x00; // Subcommand For MELSEC-Q/L series
+            _WriteBuffer[14] = 0x00; // Subcommand For MELSEC-Q/L series
+            Array.Copy(GetAddress(szDevice), 0, _WriteBuffer, 15, 4); //Device name (3byte head number, 1 byte device code)
+            Array.Copy(BitConverter.GetBytes(length), 0, _WriteBuffer, 19, 2); //Data length (Word)
+
+            Array.Clear(dataRecv, 0, dataRecv.Length);
+            _Stream.Write(_WriteBuffer, 0, _WriteBuffer.Length);
+            //Wait response message
+            double _TimeOut;
+            DateTime _timeStart = DateTime.Now;
+
+            while (dataRecv[0] == 0)
+            {
+                _TimeOut = (DateTime.Now - _timeStart).TotalMilliseconds;
+                if (_TimeOut > 5000) return -1;
+            }
+            if ((dataRecv[10] << 8 | dataRecv[9]) != 0) return dataRecv[10] << 8 | dataRecv[9];
+            int _dataResLeng = ((dataRecv[8] << 8 | dataRecv[7]) - 2) / 2;
+            for (int i = 0; i < _dataResLeng; i++)
+            {
+                Value[i] = (short)(dataRecv[12 + i * 2] << 8 | dataRecv[11 + i * 2]);
+            }
+            return dataRecv[10] << 8 | dataRecv[9];
+        }
+        private int WriteDevice(string szDevice, short Value)
+        {
+            short[] data = new short[1] { Value };
+            return WriteDeviceBlock(szDevice, data);
+        }
+        private int ReadDevice(string szDevice, out short Value)
+        {
+            short[] data;
+            Value = 0;
+
+            int iResult = ReadDeviceBlock(szDevice, 1, out data);
+            if (iResult == 0) Value = data[0];
+            return iResult;
+        }
+
         #endregion
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            int iResult = 0;
+            txt_HeadDevice_w.Text = txt_HeadDevice_w.Text.ToUpper();
+            short[] _Write = new short[10];
+            Random _byteRND = new Random();
+            for (int i = 0; i < _Write.Length; i++)
+            {
+                _Write[i] = (short)_byteRND.Next(0, 255);
+            }
+            WriteDeviceBlock(txt_HeadDevice_w.Text, _Write);
+            iResult = ReadDeviceBlock(txt_HeadDevice_w.Text, 10, out _Read);
+            if (iResult == 0)
+            {
+                for(int i = 0; i < _Read.Length; i++)
+                {
+                    logDisplay(txt_HeadDevice_w.Text.Split(' ')[0] + (Convert.ToInt16(txt_HeadDevice_w.Text.Split(' ')[1]) + i).ToString("0000") + ": " + _Read[i].ToString());
+                }
+            }
+        }
+
+        private void btn_Write_Click(object sender, EventArgs e)
+        {
+            int iResult = 0;
+            txt_HeadDevice_w.Text = txt_HeadDevice_w.Text.ToUpper();
+            short[] _Write = new short[10];
+            Random _byteRND = new Random();
+            for (int i = 0; i < _Write.Length; i++)
+            {
+                _Write[i] = (short)_byteRND.Next(0, 255);
+            }
+            iResult = WriteDeviceBlock(txt_HeadDevice_w.Text, _Write);
+        }
     }
 }
