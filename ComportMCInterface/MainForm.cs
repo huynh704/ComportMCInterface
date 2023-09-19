@@ -24,7 +24,6 @@ namespace ComportMCInterface
         bool _ClientOpen = false;
         byte[] dataRecv;
         byte[] dataSend;
-        bool _bReceiveCom = false; 
         TcpClient _Client = new TcpClient();
         NetworkStream _Stream;
         ASCIIEncoding encoding = new ASCIIEncoding();
@@ -56,21 +55,36 @@ namespace ComportMCInterface
         private void MainThread()
         {
             dataRecv = new byte[_Client.ReceiveBufferSize];
+            //DateTime _AliveStart = DateTime.Now;
             while (true)
             {
                 try
                 {
-                    if (_ClientOpen && _Stream.DataAvailable)
+                    if (_ClientOpen)
                     {
-                        dataRecv = new byte[_Client.ReceiveBufferSize];
-                        int length = _Stream.Read(dataRecv, 0, dataRecv.Length);
-                        string s_receive = encoding.GetString(dataRecv, 0, length);
-                        //logDisplay("[Server>]: Receive data complete");
+                        if (_Client.Available > 0)
+                        {
+                            dataRecv = new byte[_Client.ReceiveBufferSize];
+                            int length = _Stream.Read(dataRecv, 0, dataRecv.Length);
+                            string s_receive = encoding.GetString(dataRecv, 0, length);
+                            //logDisplay("[Server>]: Receive data complete");
+                        }
+                        //if ((DateTime.Now - _AliveStart).TotalMilliseconds > 1000)
+                        //{
+                        //    _AliveStart = DateTime.Now;
+                        //    byte[] _CheckAlive = new byte[1] { (byte)'.' };
+                        //    _Stream.Write(_CheckAlive, 0, _CheckAlive.Length);
+                        //}
                     }
+
                 }
                 catch (Exception ex)
                 {
                     //MessageBox.Show(ex.Message, ex.Source, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    //if(!_Client.Connected)
+                    //{
+                    //    _Client.Connect(txt_HostIP.Text, int.Parse(txt_HostPort.Text));
+                    //}
                 }
             }
         }
@@ -112,6 +126,8 @@ namespace ComportMCInterface
                 try
                 {
                     _Client = new TcpClient();
+                    _Client.SendBufferSize = 1024;
+                    _Client.ReceiveBufferSize = 1024;
                     _Client.SendTimeout = 1000;
                     _Client.Connect(txt_HostIP.Text, int.Parse(txt_HostPort.Text));
                     _Stream = _Client.GetStream();
@@ -161,7 +177,7 @@ namespace ComportMCInterface
         #region MC Protocol funtion
         // GetAddress(string address)
         // Summary:
-        //     An array of bytes with length 8.
+        //     Convert string address to byte[] address MELSEC Communication Protocol
         //
         // Parameters:
         //   address:
@@ -170,7 +186,7 @@ namespace ComportMCInterface
         //      example: ZR1000 is "ZR 1000"
         //
         // Returns:
-        //     An array of bytes with length 8.
+        //     byte[4] address MELSEC Communication Protocol
         private byte[] GetAddress(string address)
         {
             byte[] _Address = new byte[4];
