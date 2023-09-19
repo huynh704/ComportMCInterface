@@ -20,7 +20,6 @@ namespace ComportMCInterface
     public partial class MainForm : Form
     {
         string _ComportReceiveData = string.Empty;
-        short[] _Read;
 
         bool _ClientOpen = false;
         byte[] dataRecv;
@@ -231,23 +230,22 @@ namespace ComportMCInterface
         }
         private int WriteDeviceBlock(string szDevice, short[] Value)
         {
-            // Setting method for 4E frame
+            // Setting method for 3E frame
             // 21 byte (Header + Subheader + Access route + Request data + Monitoring timer) + Value.Length * 2 (Request data)
             byte[] _WriteBuffer = new byte[21 + Value.Length * 2];
 
             //Header Subheader Access route
-            _WriteBuffer[0] = 0x50; //Header 1byte
+            _WriteBuffer[0] = 0x50; //SubHeader (Free) 2byte
             _WriteBuffer[1] = 0x00; //SubHeader (Free) 2byte
-            _WriteBuffer[2] = 0x00; //SubHeader (Free) 2byte
-            _WriteBuffer[3] = 0xFF; //
-            _WriteBuffer[4] = 0xFF; //
-            _WriteBuffer[5] = 0x03; //
-            _WriteBuffer[6] = 0x00; //
+            _WriteBuffer[2] = 0x00; //Network No
+            _WriteBuffer[3] = 0xFF; //PC No
+            _WriteBuffer[4] = 0xFF; //Request Module IO No
+            _WriteBuffer[5] = 0x03; //Request Module IO No
+            _WriteBuffer[6] = 0x00; //Request Station IO No
             Array.Copy(BitConverter.GetBytes(Value.Length * 2 + 12), 0, _WriteBuffer, 7, 2); //RequestData (Monitoring timer ~ Request data)Byte
             _WriteBuffer[9] = 0x10; //Monitoring timer (250 ms per value)
             _WriteBuffer[10] = 0x00; //Monitoring timer (250 ms per value)
             //Message format batch write (0x00, 0x00, 0x14, 0x01)
-            //Message format batch read (0x00, 0x00, 0x04, 0x01)
             _WriteBuffer[11] = 0x01; // Command 4C/3C/4E/3E frame
             _WriteBuffer[12] = 0x14; // Command 4C/3C/4E/3E frame
             _WriteBuffer[13] = 0x00; // Subcommand For MELSEC-Q/L series
@@ -270,28 +268,28 @@ namespace ComportMCInterface
                 _TimeOut = (DateTime.Now - _timeStart).TotalMilliseconds;
                 if (_TimeOut > 5000) return -1;
             }
+            //Return end code
             return dataRecv[12] << 8 | dataRecv[11];
         }
         private int ReadDeviceBlock(string szDevice, int length, out short[] Value)
         {
-            // Setting method for 4E frame
-            // 21 byte (Header + Subheader + Access route + Request data + Monitoring timer) + Value.Length * 2 (Request data)
+            // Setting method for 3E frame
+            // 21 byte (Header + Subheader + Access route + Request data + Monitoring timer)
             byte[] _WriteBuffer = new byte[21];
             short[] _ReadBuffer = new short[length];
             Value = new short[length];
 
             //Header Subheader Access route
-            _WriteBuffer[0] = 0x50; //Header 1byte
+            _WriteBuffer[0] = 0x50; //SubHeader (Free) 2byte
             _WriteBuffer[1] = 0x00; //SubHeader (Free) 2byte
-            _WriteBuffer[2] = 0x00; //SubHeader (Free) 2byte
-            _WriteBuffer[3] = 0xFF; //
-            _WriteBuffer[4] = 0xFF; //
-            _WriteBuffer[5] = 0x03; //
-            _WriteBuffer[6] = 0x00; //
+            _WriteBuffer[2] = 0x00; //Network No
+            _WriteBuffer[3] = 0xFF; //PC No
+            _WriteBuffer[4] = 0xFF; //Request Module IO No
+            _WriteBuffer[5] = 0x03; //Request Module IO No
+            _WriteBuffer[6] = 0x00; //Request Station IO No
             Array.Copy(BitConverter.GetBytes(12), 0, _WriteBuffer, 7, 2); //RequestData (Monitoring timer ~ Request data)Byte
             _WriteBuffer[9] = 0x10; //Monitoring timer (250 ms per value)
             _WriteBuffer[10] = 0x00; //Monitoring timer (250 ms per value)
-            //Message format batch write (0x00, 0x00, 0x14, 0x01)
             //Message format batch read (0x00, 0x00, 0x04, 0x01)
             _WriteBuffer[11] = 0x01; // Command 4C/3C/4E/3E frame
             _WriteBuffer[12] = 0x04; // Command 4C/3C/4E/3E frame
@@ -302,21 +300,24 @@ namespace ComportMCInterface
 
             Array.Clear(dataRecv, 0, dataRecv.Length);
             _Stream.Write(_WriteBuffer, 0, _WriteBuffer.Length);
+
             //Wait response message
             double _TimeOut;
             DateTime _timeStart = DateTime.Now;
-
             while (dataRecv[0] == 0)
             {
                 _TimeOut = (DateTime.Now - _timeStart).TotalMilliseconds;
                 if (_TimeOut > 5000) return -1;
             }
+            //Check End code normal == 0
             if ((dataRecv[10] << 8 | dataRecv[9]) != 0) return dataRecv[10] << 8 | dataRecv[9];
+            //Get end point data response
             int _dataResLeng = ((dataRecv[8] << 8 | dataRecv[7]) - 2) / 2;
             for (int i = 0; i < _dataResLeng; i++)
             {
                 Value[i] = (short)(dataRecv[12 + i * 2] << 8 | dataRecv[11 + i * 2]);
             }
+            //Return end code
             return dataRecv[10] << 8 | dataRecv[9];
         }
         private int WriteDevice(string szDevice, short Value)
@@ -339,14 +340,8 @@ namespace ComportMCInterface
         private void button1_Click(object sender, EventArgs e)
         {
             int iResult = 0;
+            short[] _Read;
             txt_HeadDevice_w.Text = txt_HeadDevice_w.Text.ToUpper();
-            short[] _Write = new short[10];
-            Random _byteRND = new Random();
-            for (int i = 0; i < _Write.Length; i++)
-            {
-                _Write[i] = (short)_byteRND.Next(0, 255);
-            }
-            WriteDeviceBlock(txt_HeadDevice_w.Text, _Write);
             iResult = ReadDeviceBlock(txt_HeadDevice_w.Text, 10, out _Read);
             if (iResult == 0)
             {
