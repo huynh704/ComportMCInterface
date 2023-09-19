@@ -41,6 +41,11 @@ namespace ComportMCInterface
             Thread _MainReceive = new Thread(MainThread);
             _MainReceive.Start();
             _MainReceive.IsBackground = true;
+
+            Thread _GUIScan = new Thread(GUIScan);
+            _GUIScan.Start();
+            _GUIScan.IsBackground = true;
+
             //int[] _value = { 1, 2, 3, 4, 5, 6 };
             //WriteDeviceBlock("ZR 1000", _value);
         }
@@ -86,6 +91,20 @@ namespace ComportMCInterface
                     //    _Client.Connect(txt_HostIP.Text, int.Parse(txt_HostPort.Text));
                     //}
                 }
+            }
+        }
+        private void GUIScan()
+        {
+            while(true)
+            {
+                try
+                {
+                    this.Invoke(new Action(() =>
+                    {
+                        this.Text = "Comport <> MC Protocol " + DateTime.Now.ToString("HH:mm:ss.fff");
+                    }));
+                }
+                catch { }
             }
         }
         #region Event region
