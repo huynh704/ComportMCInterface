@@ -390,6 +390,7 @@ namespace ComportMCInterface
             // Setting method for 3E frame
             // 21 byte (Header + Subheader + Access route + Request data + Monitoring timer) + Value.Length * 2 (Request data)
             byte[] _WriteBuffer = new byte[21 + Value.Length * 2];
+            int EndCode = -1;
 
             //Header Subheader Access route
             _WriteBuffer[0] = 0x50; //SubHeader (Free) 2byte
@@ -431,8 +432,12 @@ namespace ComportMCInterface
                 _TimeOut = (DateTime.Now - _timeStart).TotalMilliseconds;
                 if (_TimeOut > TimeOut) return MCResult.WRITE_TIME_OUT;
             }
+            lock(dataRecv)
+            {
+                EndCode = dataRecv[12] << 8 | dataRecv[11];
+            }
             //Return end code
-            return dataRecv[12] << 8 | dataRecv[11];
+            return EndCode;
         }
         private int ReadDeviceBlock(string szDevice, int length, out short[] Value, double TimeOut = 1000)
         {
@@ -441,6 +446,7 @@ namespace ComportMCInterface
             byte[] _WriteBuffer = new byte[21];
             short[] _ReadBuffer = new short[length];
             Value = new short[length];
+            int EndCode = -1;
 
             //Header Subheader Access route
             _WriteBuffer[0] = 0x50; //SubHeader (Free) 2byte
@@ -480,15 +486,19 @@ namespace ComportMCInterface
                 if (_TimeOut > TimeOut) return MCResult.READ_TIME_OUT;
             }
             //Check End code normal == 0
-            if ((dataRecv[10] << 8 | dataRecv[9]) != 0) return dataRecv[10] << 8 | dataRecv[9];
-            //Get endpoint of response data
-            int _dataResLeng = ((dataRecv[8] << 8 | dataRecv[7]) - 2) / 2;
-            for (int i = 0; i < _dataResLeng; i++)
+            lock(dataRecv)
             {
-                Value[i] = (short)(dataRecv[12 + i * 2] << 8 | dataRecv[11 + i * 2]);
+                EndCode = dataRecv[10] << 8 | dataRecv[9];
+                if (EndCode != 0) return EndCode;
+                //Get endpoint of response data
+                int _dataResLeng = ((dataRecv[8] << 8 | dataRecv[7]) - 2) / 2;
+                for (int i = 0; i < _dataResLeng; i++)
+                {
+                    Value[i] = (short)(dataRecv[12 + i * 2] << 8 | dataRecv[11 + i * 2]);
+                }
             }
             //Return end code
-            return dataRecv[10] << 8 | dataRecv[9];
+            return EndCode;
         }
         private int WriteDevice(string szDevice, short Value, double TimeOut = 1000)
         {
