@@ -66,8 +66,8 @@ namespace ComportMCInterface
             string s_Buffer = string.Empty;
             s_Buffer = '[' + DateTime.Now.ToString("HH:mm:ss.fff") + "] " + message;
 
-            if (Directory.Exists(Environment.CurrentDirectory + "\\AppLog")) Directory.CreateDirectory(Environment.CurrentDirectory + "\\AppLog");
-            using (StreamWriter AppLog = new StreamWriter(DateTime.Now.ToString("yyyyMMdd HH") + ".log", true))
+            if (!Directory.Exists(Environment.CurrentDirectory + "\\AppLog")) Directory.CreateDirectory(Environment.CurrentDirectory + "\\AppLog");
+            using (StreamWriter AppLog = new StreamWriter("AppLog\\" + DateTime.Now.ToString("yyyyMMdd HH") + ".log", true))
             {
                 AppLog.WriteLine(s_Buffer);
             }
@@ -80,7 +80,6 @@ namespace ComportMCInterface
         private void MainReceive()
         {
             dataRecv = new byte[_Client.ReceiveBufferSize];
-            logDisplay("[System] Application start");
             while (_AppRunning)
             {
                 try
@@ -107,6 +106,8 @@ namespace ComportMCInterface
         {
             DateTime _StepTimer = DateTime.Now;
             int _AliveBit = 0;
+            Thread.Sleep(100);
+            logDisplay("[System] Application start");
             while (_AppRunning)
             {
                 Thread.Sleep(5);

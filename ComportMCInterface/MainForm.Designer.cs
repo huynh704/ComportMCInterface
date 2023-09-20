@@ -89,7 +89,7 @@
             this.groupBox2.Size = new System.Drawing.Size(210, 105);
             this.groupBox2.TabIndex = 29;
             this.groupBox2.TabStop = false;
-            this.groupBox2.Text = "MC Protocol";
+            this.groupBox2.Text = "PLC Server config";
             // 
             // txt_HeadDevice_w
             // 
