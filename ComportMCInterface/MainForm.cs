@@ -105,7 +105,8 @@ namespace ComportMCInterface
         }
         private void AutoThread()
         {
-            DateTime _ReconnectTime = DateTime.Now;
+            DateTime _StepTimer = DateTime.Now;
+            int _AliveBit = 0;
             while (true)
             {
                 Thread.Sleep(20);
@@ -118,6 +119,16 @@ namespace ComportMCInterface
                         }
                     case 1: //wait serial data
                         {
+                            if((DateTime.Now - _StepTimer).TotalMilliseconds > 1000)
+                            {
+                                _AliveBit = _AliveBit == 0 ? 1 : 0;
+                                if(WriteDevice("D 10", (short)_AliveBit) != 0)
+                                {
+                                    logDisplay("[System] TCP Client connection error");
+                                    _sqMain = 5;
+                                }
+                                _StepTimer = DateTime.Now;
+                            }
                             if (_ComportReceiveData != string.Empty) _sqMain++;
                             break;
                         }
@@ -175,7 +186,7 @@ namespace ComportMCInterface
                         {
                             _ClientOpen = false;
                             sr_ComPort.Close();
-                            if((DateTime.Now - _ReconnectTime).TotalMilliseconds > 1000)
+                            if((DateTime.Now - _StepTimer).TotalMilliseconds > 1000)
                             {
                                 _ClientOpen = false;
                                 sr_ComPort.Close();
@@ -185,7 +196,7 @@ namespace ComportMCInterface
                                     logDisplay("[System] Reconnect complete");
                                     _sqMain = 0;
                                 }
-                                _ReconnectTime = DateTime.Now;
+                                _StepTimer = DateTime.Now;
                             }
                             break;
                         }
