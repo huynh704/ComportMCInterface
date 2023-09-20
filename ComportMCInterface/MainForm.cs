@@ -44,10 +44,6 @@ namespace ComportMCInterface
             _MainReceive.Start();
             _MainReceive.IsBackground = true;
 
-            //Thread _GUIScan = new Thread(GUIScan);
-            //_GUIScan.Start();
-            //_GUIScan.IsBackground = true;
-
             Thread _AutoThread = new Thread(AutoThread);
             _AutoThread.Start();
             _AutoThread.IsBackground = true;
@@ -89,20 +85,6 @@ namespace ComportMCInterface
                 }
             }
         }
-        private void GUIScan()
-        {
-            while (_AppRunning)
-            {
-                try
-                {
-                    //this.Invoke(new Action(() =>
-                    //{
-                    //    this.Text = "Comport <> MC Protocol " + DateTime.Now.ToString("HH:mm:ss.fff");
-                    //}));
-                }
-                catch { }
-            }
-        }
         private void AutoThread()
         {
             DateTime _StepTimer = DateTime.Now;
@@ -129,7 +111,7 @@ namespace ComportMCInterface
                                 }
                                 _StepTimer = DateTime.Now;
                             }
-                            if (_ComportReceiveData != string.Empty) _sqMain++;
+                            else if (_ComportReceiveData != string.Empty) _sqMain++;
                             break;
                         }
                     case 2: // check data format
@@ -148,7 +130,7 @@ namespace ComportMCInterface
                                 }
                                 else if (txt_HeadDevice_w.Text.Split(' ').Length != 2)
                                 {
-                                    logDisplay("[System]Head address is not correct format");
+                                    logDisplay("[System] Head address is not correct format");
                                     _ComportReceiveData = string.Empty;
                                     _sqMain = 1;
                                 }
@@ -188,8 +170,6 @@ namespace ComportMCInterface
                         }
                     case 4: //Auto Reconnect
                         {
-                            _ClientOpen = false;
-                            sr_ComPort.Close();
                             if((DateTime.Now - _StepTimer).TotalMilliseconds > 1000)
                             {
                                 _ClientOpen = false;
@@ -206,9 +186,9 @@ namespace ComportMCInterface
                         }
                     case 5: //Dissable connection
                         {
-                            btn_Connect.BackColor = Color.Transparent;
                             btn_Connect.Invoke(new Action(() =>
                             {
+                                btn_Connect.BackColor = Color.Transparent;
                                 btn_Connect.Text = "Connect";
                             }));
                             sr_ComPort.Close();
@@ -240,7 +220,7 @@ namespace ComportMCInterface
             if (sr_ComPort.IsOpen)
             {
                 sr_ComPort.Close();
-                logDisplay("[System]Comport is closed" + Environment.NewLine);
+                logDisplay("[System] Comport is closed" + Environment.NewLine);
             }
             else
             {
@@ -253,7 +233,7 @@ namespace ComportMCInterface
                     sr_ComPort.Parity = (Parity)Enum.Parse(typeof(Parity), cmb_PartyBit.Text);
                     sr_ComPort.StopBits = (StopBits)Enum.Parse(typeof(StopBits), cmb_StopBit.Text);
                     sr_ComPort.Open();
-                    logDisplay("[System]Comport is open " + sr_ComPort.PortName + Environment.NewLine);
+                    logDisplay("[System] Comport is open " + sr_ComPort.PortName + Environment.NewLine);
                 }
                 catch (Exception ex)
                 {
@@ -271,7 +251,7 @@ namespace ComportMCInterface
                     _Client.SendTimeout = 1000;
                     _Client.Connect(txt_HostIP.Text, int.Parse(txt_HostPort.Text));
                     _Stream = _Client.GetStream();
-                    logDisplay("[System]Server connected " + txt_HostIP.Text + Environment.NewLine);
+                    logDisplay("[System] Server connected " + txt_HostIP.Text + Environment.NewLine);
                     _ClientOpen = true;
                 }
                 catch (Exception ex)
@@ -282,13 +262,12 @@ namespace ComportMCInterface
             }
             else
             {
-                _Client.Close();
                 _ClientOpen = false;
-                logDisplay("[System]Server dissconnect" + Environment.NewLine);
+                _Client.Close();
+                logDisplay("[System] Server dissconnect" + Environment.NewLine);
             }
             //Check connect
             if (sr_ComPort.IsOpen && _Client.Connected)
-            //if (sr_ComPort.IsOpen)
             {
                 this.Invoke(new Action(() =>
                 {
