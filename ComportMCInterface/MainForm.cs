@@ -20,7 +20,7 @@ namespace ComportMCInterface
     public partial class MainForm : Form
     {
         ushort _sqMain = 0;
-
+        bool _AppRunning = true;
         string _ComportReceiveData = string.Empty;
 
         bool _ClientOpen = false;
@@ -67,7 +67,7 @@ namespace ComportMCInterface
         private void MainReceive()
         {
             dataRecv = new byte[_Client.ReceiveBufferSize];
-            while (true)
+            while (_AppRunning)
             {
                 try
                 {
@@ -91,7 +91,7 @@ namespace ComportMCInterface
         }
         private void GUIScan()
         {
-            while (true)
+            while (_AppRunning)
             {
                 try
                 {
@@ -107,9 +107,9 @@ namespace ComportMCInterface
         {
             DateTime _StepTimer = DateTime.Now;
             int _AliveBit = 0;
-            while (true)
+            while (_AppRunning)
             {
-                Thread.Sleep(20);
+                Thread.Sleep(5);
                 switch (_sqMain)
                 {
                     case 0: // wait connecttion
@@ -124,7 +124,7 @@ namespace ComportMCInterface
                                 _AliveBit = _AliveBit == 0 ? 1 : 0;
                                 if(WriteDevice("D 10", (short)_AliveBit) != 0)
                                 {
-                                    logDisplay("[System] TCP Client connection error");
+                                    logDisplay("[System] Server connection error");
                                     _sqMain = 5;
                                 }
                                 _StepTimer = DateTime.Now;
@@ -140,7 +140,7 @@ namespace ComportMCInterface
                             {
                                 string[] _SerialData = _ComportReceiveData.Split(',');
                                 _sqMain++;
-                                logDisplay(_ComportReceiveData);
+                                logDisplay("[Vision>] " + _ComportReceiveData);
                                 if (_SerialData.Length != 3)
                                 {
                                     logDisplay("[Vision] Data length is not correct " + _SerialData.Length);
@@ -176,12 +176,12 @@ namespace ComportMCInterface
                             int iResult = WriteDeviceBlock(txt_HeadDevice_w.Text, dataSend);
                             if (iResult == 0)
                             {
-                                logDisplay("[PLC>] Set data to PLC");
+                                logDisplay("[PLC>] Set data to PLC complete");
                                 _sqMain = 1;
                             }
                             else if (iResult == -2)
                             {
-                                logDisplay("[System] TCP Client connection error");
+                                logDisplay("[System] Server connection error");
                                 _sqMain = 5;
                             }
                             break;
@@ -317,6 +317,12 @@ namespace ComportMCInterface
             txt_Log.SelectionStart = txt_Log.Text.Length;
             txt_Log.ScrollToCaret();
             if (txt_Log.Text.Length > UInt16.MaxValue) txt_Log.Clear();
+        }
+        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            _AppRunning = false;
+            sr_ComPort.Close();
+            _Client.Close();
         }
         #endregion
 

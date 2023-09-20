@@ -295,6 +295,7 @@
             this.MaximizeBox = false;
             this.Name = "MainForm";
             this.Text = "Comport <> MC Protocol";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.MainForm_FormClosing);
             this.groupBox2.ResumeLayout(false);
             this.groupBox2.PerformLayout();
             this.groupBox1.ResumeLayout(false);
