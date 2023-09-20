@@ -119,6 +119,7 @@ namespace ComportMCInterface
                                     logDisplay("[PLC] Server " + sError);
                                     _sqMain = 5;
                                 }
+                                else logDisplay("[PLC] Set Alive register D10 error. code 0x" + iResult.ToString("X"));
                                 _StepTimer = DateTime.Now;
                             }
                             else if (_ComportReceiveData != string.Empty) _sqMain++;
@@ -167,7 +168,7 @@ namespace ComportMCInterface
                             int iResult = WriteDeviceBlock(txt_HeadDevice_w.Text, dataSend);
                             if (iResult == MCResult.SUSSCESS)
                             {
-                                logDisplay("[PLC>] Set data to PLC complete");
+                                logDisplay("[PLC>] Write data to PLC complete");
                                 _sqMain = 1;
                             }
                             else if (iResult == MCResult.CONNECTION_ERR || iResult == MCResult.WRITE_TIME_OUT)
@@ -176,6 +177,7 @@ namespace ComportMCInterface
                                 logDisplay("[PLC] Server " + sError);
                                 _sqMain = 5;
                             }
+                            else logDisplay("[PLC] Write data to PLC error. code 0x" + iResult.ToString("X"));
                             break;
                         }
                     case 4: //Auto Reconnect
