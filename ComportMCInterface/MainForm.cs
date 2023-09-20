@@ -14,6 +14,7 @@ using System.Runtime;
 using System.Security;
 using System.Diagnostics;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.IO;
 
 namespace ComportMCInterface
 {
@@ -62,15 +63,24 @@ namespace ComportMCInterface
         }
         private void logDisplay(string message)
         {
-            message = message.IndexOf(Environment.NewLine) >= 0 ? message : message + Environment.NewLine;
-            this.Invoke(new Action(() =>
+            string s_Buffer = string.Empty;
+            s_Buffer = '[' + DateTime.Now.ToString("HH:mm:ss.fff") + "] " + message;
+
+            if (Directory.Exists(Environment.CurrentDirectory + "\\AppLog")) Directory.CreateDirectory(Environment.CurrentDirectory + "\\AppLog");
+            using (StreamWriter AppLog = new StreamWriter(DateTime.Now.ToString("yyyyMMdd HH") + ".log", true))
             {
-                txt_Log.Text += '[' + DateTime.Now.ToString("HH:mm:ss.fff") + "] " + message;
+                AppLog.WriteLine(s_Buffer);
+            }
+            s_Buffer = s_Buffer.IndexOf(Environment.NewLine) > 0 ? s_Buffer : s_Buffer + Environment.NewLine;
+            txt_Log.Invoke(new Action(() =>
+            {
+                txt_Log.AppendText(s_Buffer);
             }));
         }
         private void MainReceive()
         {
             dataRecv = new byte[_Client.ReceiveBufferSize];
+            logDisplay("[System] Application start");
             while (_AppRunning)
             {
                 try
@@ -87,7 +97,7 @@ namespace ComportMCInterface
                     }
                     Thread.Sleep(1);
                 }
-                catch (Exception ex)
+                catch //(Exception ex)
                 {
                     //MessageBox.Show(ex.Message, ex.Source, MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
@@ -232,7 +242,7 @@ namespace ComportMCInterface
             if (sr_ComPort.IsOpen)
             {
                 sr_ComPort.Close();
-                logDisplay("[System] Comport is closed" + Environment.NewLine);
+                logDisplay("[System] Comport is closed");
             }
             else
             {
@@ -245,7 +255,7 @@ namespace ComportMCInterface
                     sr_ComPort.Parity = (Parity)Enum.Parse(typeof(Parity), cmb_PartyBit.Text);
                     sr_ComPort.StopBits = (StopBits)Enum.Parse(typeof(StopBits), cmb_StopBit.Text);
                     sr_ComPort.Open();
-                    logDisplay("[System] Comport is open " + sr_ComPort.PortName + Environment.NewLine);
+                    logDisplay("[System] Comport is open " + sr_ComPort.PortName);
                 }
                 catch (Exception ex)
                 {
@@ -263,7 +273,7 @@ namespace ComportMCInterface
 
                     _Client.Connect(txt_HostIP.Text, int.Parse(txt_HostPort.Text));
                     _Stream = _Client.GetStream();
-                    logDisplay("[System] Server connected " + txt_HostIP.Text + Environment.NewLine);
+                    logDisplay("[System] Server connected " + txt_HostIP.Text);
                     _ClientOpen = true;
                 }
                 catch (Exception ex)
@@ -276,7 +286,7 @@ namespace ComportMCInterface
             {
                 _ClientOpen = false;
                 _Client.Close();
-                logDisplay("[System] Server dissconnect" + Environment.NewLine);
+                logDisplay("[System] Server dissconnect");
             }
             //Check connect
             if (sr_ComPort.IsOpen && _Client.Connected)
@@ -314,6 +324,7 @@ namespace ComportMCInterface
             _AppRunning = false;
             sr_ComPort.Close();
             _Client.Close();
+            logDisplay("[System] Application exit");
         }
         #endregion
 
@@ -343,7 +354,7 @@ namespace ComportMCInterface
             }
             catch (Exception ex)
             {
-                logDisplay('[' + ex.Source + "] " + ex.Message + Environment.NewLine + address);
+                logDisplay('[' + ex.Source + "] " + ex.Message + " " + address);
                 return _Address;
             }
             _Address = BitConverter.GetBytes(RegisterBinary);
