@@ -212,7 +212,7 @@ namespace ComportMCInterface
                 {
                     this.Invoke(new Action(() =>
                     {
-                        this.Text = "Comport <> MC Protocol " + _sqMain.ToString("(0) ") + DateTime.Now.ToString("HH:mm:ss.fff");
+                        this.Text = "Vision interface " + _sqMain.ToString("(0) ") + DateTime.Now.ToString("HH:mm:ss.fff");
                     }));
                 }
                 catch { }
@@ -258,7 +258,7 @@ namespace ComportMCInterface
                     _Client = new TcpClient();
                     _Client.SendBufferSize = 1024;
                     _Client.ReceiveBufferSize = 1024;
-                    _Client.SendTimeout = 1000;
+
                     _Client.Connect(txt_HostIP.Text, int.Parse(txt_HostPort.Text));
                     _Stream = _Client.GetStream();
                     logDisplay("[System] Server connected " + txt_HostIP.Text + Environment.NewLine);
@@ -279,7 +279,7 @@ namespace ComportMCInterface
             //Check connect
             if (sr_ComPort.IsOpen && _Client.Connected)
             {
-                this.Invoke(new Action(() =>
+                btn_Connect.Invoke(new Action(() =>
                 {
                     btn_Connect.Text = "Disconnect";
                     btn_Connect.BackColor = Color.LightGreen;
@@ -289,7 +289,7 @@ namespace ComportMCInterface
             {
                 _Client.Close();
                 sr_ComPort.Close();
-                this.Invoke(new Action(() =>
+                btn_Connect.Invoke(new Action(() =>
                 {
                     btn_Connect.Text = "Connect";
                     btn_Connect.BackColor = Color.Transparent;
@@ -305,7 +305,7 @@ namespace ComportMCInterface
         {
             txt_Log.SelectionStart = txt_Log.Text.Length;
             txt_Log.ScrollToCaret();
-            if (txt_Log.Text.Length > UInt16.MaxValue) txt_Log.Clear();
+            if (txt_Log.Text.Length > ushort.MaxValue) txt_Log.Clear();
         }
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
