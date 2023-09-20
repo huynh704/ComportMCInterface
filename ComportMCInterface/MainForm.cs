@@ -134,37 +134,41 @@ namespace ComportMCInterface
                         }
                     case 2: // check data format
                         {
+                            
                             short _iBuffer = 0;
-                            string[] _SerialData = _ComportReceiveData.Split(',');
-                            _sqMain++;
-
-                            if (_SerialData.Length != 5)
+                            lock(_ComportReceiveData)
                             {
-                                logDisplay("[Vision] Data length is not correct");
-                                _sqMain = 1;
-                            }
-                            else if(txt_HeadDevice_w.Text.Split(' ').Length != 2)
-                            {
-                                logDisplay("[System]Head address is not correct format");
-                                _ComportReceiveData = string.Empty;
-                                _sqMain = 1;
-                            }
-                            else
-                            {
-                                dataSend = new short[_SerialData.Length];
-                                for (int i = 0; i < _SerialData.Length; i++)
+                                string[] _SerialData = _ComportReceiveData.Split(',');
+                                _sqMain++;
+                                logDisplay(_ComportReceiveData);
+                                if (_SerialData.Length != 3)
                                 {
-                                    _SerialData[i] = _SerialData[i].Trim();
-                                    if (short.TryParse(_SerialData[i], out _iBuffer)) dataSend[i] = _iBuffer;
-                                    else
+                                    logDisplay("[Vision] Data length is not correct " + _SerialData.Length);
+                                    _sqMain = 1;
+                                }
+                                else if (txt_HeadDevice_w.Text.Split(' ').Length != 2)
+                                {
+                                    logDisplay("[System]Head address is not correct format");
+                                    _ComportReceiveData = string.Empty;
+                                    _sqMain = 1;
+                                }
+                                else
+                                {
+                                    dataSend = new short[_SerialData.Length];
+                                    for (int i = 0; i < _SerialData.Length; i++)
                                     {
-                                        logDisplay("[Vision] Data format is not correct " + _SerialData[i]);
-                                        _sqMain = 1;
-                                        break;
+                                        _SerialData[i] = _SerialData[i].Trim();
+                                        if (short.TryParse(_SerialData[i], out _iBuffer)) dataSend[i] = _iBuffer;
+                                        else
+                                        {
+                                            logDisplay("[Vision] Data format is not correct " + _SerialData[i]);
+                                            _sqMain = 1;
+                                            break;
+                                        }
                                     }
                                 }
+                                _ComportReceiveData = string.Empty;
                             }
-                            _ComportReceiveData = string.Empty;
                             break;
                         }
                     case 3: //write data to PLC
@@ -305,8 +309,8 @@ namespace ComportMCInterface
         }
         private void sr_ComPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
         {
-            _ComportReceiveData = sr_ComPort.ReadLine();
-            logDisplay("[Vision>]: " + _ComportReceiveData);
+            _ComportReceiveData = sr_ComPort.ReadExisting();
+            //logDisplay("[Vision>]: " + _ComportReceiveData);
         }
         private void txt_Log_TextChanged(object sender, EventArgs e)
         {
