@@ -29,6 +29,14 @@ namespace ComportMCInterface
         TcpClient _Client = new TcpClient();
         NetworkStream _Stream;
         ASCIIEncoding encoding = new ASCIIEncoding();
+
+        struct MCResult
+        {
+            public const int WRITE_TIME_OUT = -1;
+            public const int READ_TIME_OUT = -2;
+            public const int CONNECTION_ERR = -3;
+            public const int SUSSCESS = 0;
+        }
         public MainForm()
         {
             InitializeComponent();
@@ -104,9 +112,11 @@ namespace ComportMCInterface
                             if((DateTime.Now - _StepTimer).TotalMilliseconds > 1000)
                             {
                                 _AliveBit = _AliveBit == 0 ? 1 : 0;
-                                if(WriteDevice("D 10", (short)_AliveBit) != 0)
+                                int iResult = WriteDevice("D 10", (short)_AliveBit);
+                                if (iResult == MCResult.CONNECTION_ERR || iResult == MCResult.WRITE_TIME_OUT)
                                 {
-                                    logDisplay("[System] Server connection error");
+                                    string sError = iResult == MCResult.CONNECTION_ERR ? "connection error" : "wait time over";
+                                    logDisplay("[PLC] Server " + sError);
                                     _sqMain = 5;
                                 }
                                 _StepTimer = DateTime.Now;
@@ -131,7 +141,6 @@ namespace ComportMCInterface
                                 else if (txt_HeadDevice_w.Text.Split(' ').Length != 2)
                                 {
                                     logDisplay("[System] Head address is not correct format");
-                                    _ComportReceiveData = string.Empty;
                                     _sqMain = 1;
                                 }
                                 else
@@ -156,14 +165,15 @@ namespace ComportMCInterface
                     case 3: //write data to PLC
                         {
                             int iResult = WriteDeviceBlock(txt_HeadDevice_w.Text, dataSend);
-                            if (iResult == 0)
+                            if (iResult == MCResult.SUSSCESS)
                             {
                                 logDisplay("[PLC>] Set data to PLC complete");
                                 _sqMain = 1;
                             }
-                            else if (iResult == -2)
+                            else if (iResult == MCResult.CONNECTION_ERR || iResult == MCResult.WRITE_TIME_OUT)
                             {
-                                logDisplay("[System] Server connection error");
+                                string sError = iResult == MCResult.CONNECTION_ERR ? "connection error" : "wait time over";
+                                logDisplay("[PLC] Server " + sError);
                                 _sqMain = 5;
                             }
                             break;
@@ -375,7 +385,7 @@ namespace ComportMCInterface
             }
             return _Address;
         }
-        private int WriteDeviceBlock(string szDevice, short[] Value)
+        private int WriteDeviceBlock(string szDevice, short[] Value, double TimeOut = 1000)
         {
             // Setting method for 3E frame
             // 21 byte (Header + Subheader + Access route + Request data + Monitoring timer) + Value.Length * 2 (Request data)
@@ -411,7 +421,7 @@ namespace ComportMCInterface
             }
             catch
             {
-                return -2;
+                return MCResult.CONNECTION_ERR;
             }
             //Wait response message
             double _TimeOut;
@@ -419,12 +429,12 @@ namespace ComportMCInterface
             while (dataRecv[0] == 0)
             {
                 _TimeOut = (DateTime.Now - _timeStart).TotalMilliseconds;
-                if (_TimeOut > 1000) return -1;
+                if (_TimeOut > TimeOut) return MCResult.WRITE_TIME_OUT;
             }
             //Return end code
             return dataRecv[12] << 8 | dataRecv[11];
         }
-        private int ReadDeviceBlock(string szDevice, int length, out short[] Value)
+        private int ReadDeviceBlock(string szDevice, int length, out short[] Value, double TimeOut = 1000)
         {
             // Setting method for 3E frame
             // 21 byte (Header + Subheader + Access route + Request data + Monitoring timer)
@@ -458,7 +468,7 @@ namespace ComportMCInterface
             }
             catch
             {
-                return -2;
+                return MCResult.CONNECTION_ERR;
             }
 
             //Wait response message
@@ -467,7 +477,7 @@ namespace ComportMCInterface
             while (dataRecv[0] == 0)
             {
                 _TimeOut = (DateTime.Now - _timeStart).TotalMilliseconds;
-                if (_TimeOut > 5000) return -1;
+                if (_TimeOut > TimeOut) return MCResult.READ_TIME_OUT;
             }
             //Check End code normal == 0
             if ((dataRecv[10] << 8 | dataRecv[9]) != 0) return dataRecv[10] << 8 | dataRecv[9];
@@ -480,17 +490,17 @@ namespace ComportMCInterface
             //Return end code
             return dataRecv[10] << 8 | dataRecv[9];
         }
-        private int WriteDevice(string szDevice, short Value)
+        private int WriteDevice(string szDevice, short Value, double TimeOut = 1000)
         {
             short[] data = new short[1] { Value };
-            return WriteDeviceBlock(szDevice, data);
+            return WriteDeviceBlock(szDevice, data, TimeOut);
         }
-        private int ReadDevice(string szDevice, out short Value)
+        private int ReadDevice(string szDevice, out short Value, double TimeOut = 1000)
         {
             short[] data;
             Value = 0;
 
-            int iResult = ReadDeviceBlock(szDevice, 1, out data);
+            int iResult = ReadDeviceBlock(szDevice, 1, out data, TimeOut);
             if (iResult == 0) Value = data[0];
             return iResult;
         }
