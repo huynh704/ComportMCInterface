@@ -88,7 +88,7 @@ namespace ComportMCInterface
                     {
                         if (_Client.Available > 0)
                         {
-                            dataRecv = new byte[_Client.ReceiveBufferSize];
+                            Array.Clear(dataRecv, 0, dataRecv.Length);
                             int length = _Stream.Read(dataRecv, 0, dataRecv.Length);
                             string s_receive = encoding.GetString(dataRecv, 0, length);
                             //logDisplay("[Server>]: Receive data complete");
@@ -96,9 +96,9 @@ namespace ComportMCInterface
                     }
                     Thread.Sleep(1);
                 }
-                catch //(Exception ex)
+                catch (Exception ex)
                 {
-                    //MessageBox.Show(ex.Message, ex.Source, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show(ex.Message, ex.Source, MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
