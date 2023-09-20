@@ -243,7 +243,7 @@ namespace ComportMCInterface
             if (sr_ComPort.IsOpen)
             {
                 sr_ComPort.Close();
-                logDisplay("[System] Comport is closed");
+                logDisplay("[Serial] Comport is closed");
             }
             else
             {
@@ -256,15 +256,16 @@ namespace ComportMCInterface
                     sr_ComPort.Parity = (Parity)Enum.Parse(typeof(Parity), cmb_PartyBit.Text);
                     sr_ComPort.StopBits = (StopBits)Enum.Parse(typeof(StopBits), cmb_StopBit.Text);
                     sr_ComPort.Open();
-                    logDisplay("[System] Comport is open " + sr_ComPort.PortName);
+                    logDisplay("[Serial] Comport is open " + sr_ComPort.PortName);
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show(ex.Message, ex.Source, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    logDisplay("[Serial] Serial open fail because " + ex.Message);
+                    // MessageBox.Show(ex.Message, ex.Source, MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
             //Server TCP Connect
-            if (!_ClientOpen)
+            if (!_ClientOpen && sr_ComPort.IsOpen)
             {
                 try
                 {
@@ -274,20 +275,21 @@ namespace ComportMCInterface
 
                     _Client.Connect(txt_HostIP.Text, int.Parse(txt_HostPort.Text));
                     _Stream = _Client.GetStream();
-                    logDisplay("[System] Server connected " + txt_HostIP.Text);
+                    logDisplay("[Server] Server connected " + txt_HostIP.Text);
                     _ClientOpen = true;
                 }
                 catch (Exception ex)
                 {
                     _ClientOpen = false;
-                    MessageBox.Show(ex.Message, ex.Source, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    logDisplay("[Server] Server open fail because " + ex.Message);
+                    // MessageBox.Show(ex.Message, ex.Source, MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
-            else
+            else if(_ClientOpen)
             {
                 _ClientOpen = false;
                 _Client.Close();
-                logDisplay("[System] Server dissconnect");
+                logDisplay("[Server] Server dissconnect");
             }
             //Check connect
             if (sr_ComPort.IsOpen && _Client.Connected)
