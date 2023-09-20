@@ -19,11 +19,13 @@ namespace ComportMCInterface
 {
     public partial class MainForm : Form
     {
+        ushort _sqMain = 0;
+
         string _ComportReceiveData = string.Empty;
 
         bool _ClientOpen = false;
         byte[] dataRecv;
-        byte[] dataSend;
+        short[] dataSend;
         TcpClient _Client = new TcpClient();
         NetworkStream _Stream;
         ASCIIEncoding encoding = new ASCIIEncoding();
@@ -38,13 +40,18 @@ namespace ComportMCInterface
             cmb_StopBit.SelectedIndex = 0;
 
             //CheckForIllegalCrossThreadCalls = false;
-            Thread _MainReceive = new Thread(MainThread);
+            Thread _MainReceive = new Thread(MainReceive);
             _MainReceive.Start();
             _MainReceive.IsBackground = true;
 
             Thread _GUIScan = new Thread(GUIScan);
             _GUIScan.Start();
             _GUIScan.IsBackground = true;
+
+            Thread _AutoThread = new Thread(AutoThread);
+            _AutoThread.Start();
+            _AutoThread.IsBackground = true;
+
 
             //int[] _value = { 1, 2, 3, 4, 5, 6 };
             //WriteDeviceBlock("ZR 1000", _value);
@@ -57,10 +64,9 @@ namespace ComportMCInterface
                 txt_Log.Text += '[' + DateTime.Now.ToString("HH:mm:ss.fff") + "] " + message;
             }));
         }
-        private void MainThread()
+        private void MainReceive()
         {
             dataRecv = new byte[_Client.ReceiveBufferSize];
-            //DateTime _AliveStart = DateTime.Now;
             while (true)
             {
                 try
@@ -74,34 +80,131 @@ namespace ComportMCInterface
                             string s_receive = encoding.GetString(dataRecv, 0, length);
                             //logDisplay("[Server>]: Receive data complete");
                         }
-                        //if ((DateTime.Now - _AliveStart).TotalMilliseconds > 1000)
-                        //{
-                        //    _AliveStart = DateTime.Now;
-                        //    byte[] _CheckAlive = new byte[1] { (byte)'.' };
-                        //    _Stream.Write(_CheckAlive, 0, _CheckAlive.Length);
-                        //}
                     }
-
                 }
                 catch (Exception ex)
                 {
                     //MessageBox.Show(ex.Message, ex.Source, MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    //if(!_Client.Connected)
-                    //{
-                    //    _Client.Connect(txt_HostIP.Text, int.Parse(txt_HostPort.Text));
-                    //}
                 }
             }
         }
         private void GUIScan()
         {
-            while(true)
+            while (true)
             {
+                try
+                {
+                    //this.Invoke(new Action(() =>
+                    //{
+                    //    this.Text = "Comport <> MC Protocol " + DateTime.Now.ToString("HH:mm:ss.fff");
+                    //}));
+                }
+                catch { }
+            }
+        }
+        private void AutoThread()
+        {
+            DateTime _ReconnectTime = DateTime.Now;
+            while (true)
+            {
+                switch (_sqMain)
+                {
+                    case 0: // wait connecttion
+                        {
+                            if (_ClientOpen && sr_ComPort.IsOpen) _sqMain++;
+                            break;
+                        }
+                    case 1: //wait serial data
+                        {
+                            if (_ComportReceiveData != string.Empty) _sqMain++;
+                            break;
+                        }
+                    case 2: // check data format
+                        {
+                            short _iBuffer = 0;
+                            string[] _SerialData = _ComportReceiveData.Split(',');
+                            _sqMain++;
+
+                            if (_SerialData.Length != 5)
+                            {
+                                logDisplay("[Vision] Data length is not correct");
+                                _sqMain = 1;
+                            }
+                            else if(txt_HeadDevice_w.Text.Split(' ').Length != 2)
+                            {
+                                logDisplay("[System]Head address is not correct format");
+                                _ComportReceiveData = string.Empty;
+                                _sqMain = 1;
+                            }
+                            else
+                            {
+                                dataSend = new short[_SerialData.Length];
+                                for (int i = 0; i < _SerialData.Length; i++)
+                                {
+                                    _SerialData[i] = _SerialData[i].Trim();
+                                    if (short.TryParse(_SerialData[i], out _iBuffer)) dataSend[i] = _iBuffer;
+                                    else
+                                    {
+                                        logDisplay("[Vision] Data format is not correct " + _SerialData[i]);
+                                        _sqMain = 1;
+                                        break;
+                                    }
+                                }
+                            }
+                            _ComportReceiveData = string.Empty;
+                            break;
+                        }
+                    case 3: //write data to PLC
+                        {
+                            int iResult = WriteDeviceBlock(txt_HeadDevice_w.Text, dataSend);
+                            if (iResult == 0)
+                            {
+                                logDisplay("[PLC>] Set data to PLC");
+                                _sqMain = 1;
+                            }
+                            else if (iResult == -2)
+                            {
+                                logDisplay("[System] TCP Client connection error");
+                                _sqMain = 5;
+                            }
+                            break;
+                        }
+                    case 4: //Reconnect
+                        {
+                            _ClientOpen = false;
+                            sr_ComPort.Close();
+                            if((DateTime.Now - _ReconnectTime).TotalMilliseconds > 1000)
+                            {
+                                _ClientOpen = false;
+                                sr_ComPort.Close();
+                                btn_Connect_Click(null, null);
+                                if(_Client.Connected && sr_ComPort.IsOpen)
+                                {
+                                    logDisplay("[System] Reconnect complete");
+                                    _sqMain = 0;
+                                }
+                            }
+                            break;
+                        }
+                    case 5:
+                        {
+                            btn_Connect.BackColor = Color.Transparent;
+                            btn_Connect.Invoke(new Action(() =>
+                            {
+                                btn_Connect.Text = "Connect";
+                            }));
+                            sr_ComPort.Close();
+                            _Client.Close();
+                            _ClientOpen = false;
+                            _sqMain = 0;
+                            break;
+                        }
+                }
                 try
                 {
                     this.Invoke(new Action(() =>
                     {
-                        this.Text = "Comport <> MC Protocol " + DateTime.Now.ToString("HH:mm:ss.fff");
+                        this.Text = "Comport <> MC Protocol " + _sqMain.ToString("(0) ") + DateTime.Now.ToString("HH:mm:ss.fff");
                     }));
                 }
                 catch { }
@@ -167,7 +270,7 @@ namespace ComportMCInterface
             }
             //Check connect
             if (sr_ComPort.IsOpen && _Client.Connected)
-                //if (sr_ComPort.IsOpen)
+            //if (sr_ComPort.IsOpen)
             {
                 btn_Connect.Text = "Disconnect";
                 btn_Connect.BackColor = Color.LightGreen;
@@ -187,7 +290,7 @@ namespace ComportMCInterface
         }
         private void txt_Log_TextChanged(object sender, EventArgs e)
         {
-            txt_Log.SelectionStart = txt_Log.Text.Length;
+            //txt_Log.SelectionStart = txt_Log.Text.Length;
             txt_Log.ScrollToCaret();
             if (txt_Log.Text.Length > UInt16.MaxValue) txt_Log.Clear();
         }
@@ -217,9 +320,9 @@ namespace ComportMCInterface
                 RegisterSymbol = address.Split(' ')[0].Trim();
                 RegisterBinary = Convert.ToInt16(address.Split(' ')[1].Trim());
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                logDisplay('[' + ex.Source + "] " +ex.Message + Environment.NewLine + address);
+                logDisplay('[' + ex.Source + "] " + ex.Message + Environment.NewLine + address);
                 return _Address;
             }
             _Address = BitConverter.GetBytes(RegisterBinary);
@@ -287,21 +390,27 @@ namespace ComportMCInterface
             _WriteBuffer[14] = 0x00; // Subcommand For MELSEC-Q/L series
             Array.Copy(GetAddress(szDevice), 0, _WriteBuffer, 15, 4); //Device name (3byte head number, 1 byte device code)
             Array.Copy(BitConverter.GetBytes(Value.Length), 0, _WriteBuffer, 19, 2); //Data length (Word)
-            for(int i = 0; i < Value.Length; i++)
+            for (int i = 0; i < Value.Length; i++)
             {
                 _WriteBuffer[21 + i * 2] = BitConverter.GetBytes(Value[i])[0];
                 _WriteBuffer[22 + i * 2] = BitConverter.GetBytes(Value[i])[1];
             }
             Array.Clear(dataRecv, 0, dataRecv.Length);
-            _Stream.Write(_WriteBuffer, 0, _WriteBuffer.Length);
-            
+            try
+            {
+                _Stream.Write(_WriteBuffer, 0, _WriteBuffer.Length);
+            }
+            catch
+            {
+                return -2;
+            }
             //Wait response message
             double _TimeOut;
             DateTime _timeStart = DateTime.Now;
             while (dataRecv[0] == 0)
             {
                 _TimeOut = (DateTime.Now - _timeStart).TotalMilliseconds;
-                if (_TimeOut > 5000) return -1;
+                if (_TimeOut > 1000) return -1;
             }
             //Return end code
             return dataRecv[12] << 8 | dataRecv[11];
@@ -334,7 +443,14 @@ namespace ComportMCInterface
             Array.Copy(BitConverter.GetBytes(length), 0, _WriteBuffer, 19, 2); //Data length (Word)
 
             Array.Clear(dataRecv, 0, dataRecv.Length);
-            _Stream.Write(_WriteBuffer, 0, _WriteBuffer.Length);
+            try
+            {
+                _Stream.Write(_WriteBuffer, 0, _WriteBuffer.Length);
+            }
+            catch
+            {
+                return -2;
+            }
 
             //Wait response message
             double _TimeOut;
@@ -380,7 +496,7 @@ namespace ComportMCInterface
             iResult = ReadDeviceBlock(txt_HeadDevice_w.Text, 10, out _Read);
             if (iResult == 0)
             {
-                for(int i = 0; i < _Read.Length; i++)
+                for (int i = 0; i < _Read.Length; i++)
                 {
                     logDisplay(txt_HeadDevice_w.Text.Split(' ')[0] + (Convert.ToInt16(txt_HeadDevice_w.Text.Split(' ')[1]) + i).ToString("0000") + ": " + _Read[i].ToString());
                 }
@@ -395,7 +511,7 @@ namespace ComportMCInterface
             Random _byteRND = new Random();
             for (int i = 0; i < _Write.Length; i++)
             {
-                _Write[i] = (short)_byteRND.Next(0, 255);
+                _Write[i] = (short)_byteRND.Next(0, 65535);
             }
             iResult = WriteDeviceBlock(txt_HeadDevice_w.Text, _Write);
         }

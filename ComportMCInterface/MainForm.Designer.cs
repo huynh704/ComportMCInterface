@@ -98,6 +98,7 @@
             this.txt_HeadDevice_w.Name = "txt_HeadDevice_w";
             this.txt_HeadDevice_w.Size = new System.Drawing.Size(100, 20);
             this.txt_HeadDevice_w.TabIndex = 7;
+            this.txt_HeadDevice_w.Text = "D 0";
             // 
             // txt_HostPort
             // 
