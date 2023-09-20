@@ -50,8 +50,6 @@
             this.cmb_BaudRate = new System.Windows.Forms.ComboBox();
             this.cmb_PortName = new System.Windows.Forms.ComboBox();
             this.sr_ComPort = new System.IO.Ports.SerialPort(this.components);
-            this.btn_Read = new System.Windows.Forms.Button();
-            this.btn_Write = new System.Windows.Forms.Button();
             this.groupBox2.SuspendLayout();
             this.groupBox1.SuspendLayout();
             this.SuspendLayout();
@@ -282,34 +280,12 @@
             // 
             this.sr_ComPort.DataReceived += new System.IO.Ports.SerialDataReceivedEventHandler(this.sr_ComPort_DataReceived);
             // 
-            // btn_Read
-            // 
-            this.btn_Read.Location = new System.Drawing.Point(693, 318);
-            this.btn_Read.Name = "btn_Read";
-            this.btn_Read.Size = new System.Drawing.Size(75, 23);
-            this.btn_Read.TabIndex = 32;
-            this.btn_Read.Text = "Read";
-            this.btn_Read.UseVisualStyleBackColor = true;
-            this.btn_Read.Click += new System.EventHandler(this.button1_Click);
-            // 
-            // btn_Write
-            // 
-            this.btn_Write.Location = new System.Drawing.Point(612, 318);
-            this.btn_Write.Name = "btn_Write";
-            this.btn_Write.Size = new System.Drawing.Size(75, 23);
-            this.btn_Write.TabIndex = 32;
-            this.btn_Write.Text = "Write";
-            this.btn_Write.UseVisualStyleBackColor = true;
-            this.btn_Write.Click += new System.EventHandler(this.btn_Write_Click);
-            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.ClientSize = new System.Drawing.Size(795, 349);
-            this.Controls.Add(this.btn_Write);
-            this.Controls.Add(this.btn_Read);
             this.Controls.Add(this.txt_Log);
             this.Controls.Add(this.btn_Connect);
             this.Controls.Add(this.groupBox2);
@@ -349,8 +325,6 @@
         private System.IO.Ports.SerialPort sr_ComPort;
         private System.Windows.Forms.TextBox txt_HeadDevice_w;
         private System.Windows.Forms.Label label8;
-        private System.Windows.Forms.Button btn_Read;
-        private System.Windows.Forms.Button btn_Write;
     }
 }
 

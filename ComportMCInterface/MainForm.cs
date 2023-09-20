@@ -44,9 +44,9 @@ namespace ComportMCInterface
             _MainReceive.Start();
             _MainReceive.IsBackground = true;
 
-            Thread _GUIScan = new Thread(GUIScan);
-            _GUIScan.Start();
-            _GUIScan.IsBackground = true;
+            //Thread _GUIScan = new Thread(GUIScan);
+            //_GUIScan.Start();
+            //_GUIScan.IsBackground = true;
 
             Thread _AutoThread = new Thread(AutoThread);
             _AutoThread.Start();
@@ -81,6 +81,7 @@ namespace ComportMCInterface
                             //logDisplay("[Server>]: Receive data complete");
                         }
                     }
+                    Thread.Sleep(1);
                 }
                 catch (Exception ex)
                 {
@@ -107,6 +108,7 @@ namespace ComportMCInterface
             DateTime _ReconnectTime = DateTime.Now;
             while (true)
             {
+                Thread.Sleep(20);
                 switch (_sqMain)
                 {
                     case 0: // wait connecttion
@@ -169,7 +171,7 @@ namespace ComportMCInterface
                             }
                             break;
                         }
-                    case 4: //Reconnect
+                    case 4: //Auto Reconnect
                         {
                             _ClientOpen = false;
                             sr_ComPort.Close();
@@ -183,10 +185,11 @@ namespace ComportMCInterface
                                     logDisplay("[System] Reconnect complete");
                                     _sqMain = 0;
                                 }
+                                _ReconnectTime = DateTime.Now;
                             }
                             break;
                         }
-                    case 5:
+                    case 5: //Dissable connection
                         {
                             btn_Connect.BackColor = Color.Transparent;
                             btn_Connect.Invoke(new Action(() =>
@@ -228,7 +231,7 @@ namespace ComportMCInterface
             {
                 try
                 {
-                    txt_Log.Clear();
+                    //txt_Log.Clear();
                     sr_ComPort.PortName = cmb_PortName.SelectedItem.ToString();
                     sr_ComPort.BaudRate = Convert.ToInt32(cmb_BaudRate.SelectedItem);
                     sr_ComPort.DataBits = Convert.ToInt32(cmb_DataBit.SelectedItem);
@@ -272,15 +275,21 @@ namespace ComportMCInterface
             if (sr_ComPort.IsOpen && _Client.Connected)
             //if (sr_ComPort.IsOpen)
             {
-                btn_Connect.Text = "Disconnect";
-                btn_Connect.BackColor = Color.LightGreen;
+                this.Invoke(new Action(() =>
+                {
+                    btn_Connect.Text = "Disconnect";
+                    btn_Connect.BackColor = Color.LightGreen;
+                }));
             }
             else
             {
                 _Client.Close();
                 sr_ComPort.Close();
-                btn_Connect.Text = "Connect";
-                btn_Connect.BackColor = Color.Transparent;
+                this.Invoke(new Action(() =>
+                {
+                    btn_Connect.Text = "Connect";
+                    btn_Connect.BackColor = Color.Transparent;
+                }));
             }
         }
         private void sr_ComPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
@@ -290,7 +299,7 @@ namespace ComportMCInterface
         }
         private void txt_Log_TextChanged(object sender, EventArgs e)
         {
-            //txt_Log.SelectionStart = txt_Log.Text.Length;
+            txt_Log.SelectionStart = txt_Log.Text.Length;
             txt_Log.ScrollToCaret();
             if (txt_Log.Text.Length > UInt16.MaxValue) txt_Log.Clear();
         }
@@ -487,33 +496,5 @@ namespace ComportMCInterface
         }
 
         #endregion
-
-        private void button1_Click(object sender, EventArgs e)
-        {
-            int iResult = 0;
-            short[] _Read;
-            txt_HeadDevice_w.Text = txt_HeadDevice_w.Text.ToUpper();
-            iResult = ReadDeviceBlock(txt_HeadDevice_w.Text, 10, out _Read);
-            if (iResult == 0)
-            {
-                for (int i = 0; i < _Read.Length; i++)
-                {
-                    logDisplay(txt_HeadDevice_w.Text.Split(' ')[0] + (Convert.ToInt16(txt_HeadDevice_w.Text.Split(' ')[1]) + i).ToString("0000") + ": " + _Read[i].ToString());
-                }
-            }
-        }
-
-        private void btn_Write_Click(object sender, EventArgs e)
-        {
-            int iResult = 0;
-            txt_HeadDevice_w.Text = txt_HeadDevice_w.Text.ToUpper();
-            short[] _Write = new short[10];
-            Random _byteRND = new Random();
-            for (int i = 0; i < _Write.Length; i++)
-            {
-                _Write[i] = (short)_byteRND.Next(0, 65535);
-            }
-            iResult = WriteDeviceBlock(txt_HeadDevice_w.Text, _Write);
-        }
     }
 }
