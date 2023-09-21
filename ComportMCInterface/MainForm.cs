@@ -130,7 +130,7 @@ namespace ComportMCInterface
                                     logDisplay("[PLC] Server " + sError);
                                     _sqMain = 5;
                                 }
-                                else logDisplay("[PLC] Set Alive register D10 error. code 0x" + iResult.ToString("X"));
+                                else if(iResult != MCResult.SUSSCESS) logDisplay("[PLC] Set Alive register D10 error. code 0x" + iResult.ToString("X"));
                                 _StepTimer = DateTime.Now;
                             }
                             else if (_ComportReceiveData != string.Empty) _sqMain++;
