@@ -105,7 +105,7 @@
             this.txt_HostPort.Name = "txt_HostPort";
             this.txt_HostPort.Size = new System.Drawing.Size(55, 20);
             this.txt_HostPort.TabIndex = 6;
-            this.txt_HostPort.Text = "1100";
+            this.txt_HostPort.Text = "1300";
             // 
             // txt_HostIP
             // 

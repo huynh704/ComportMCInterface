@@ -31,6 +31,11 @@ namespace ComportMCInterface
         NetworkStream _Stream;
         ASCIIEncoding encoding = new ASCIIEncoding();
 
+        struct PLCMapping
+        {
+            public const string ALIVE_BIT = "D 10";
+            public const string ACTION_BIT = "D 3";
+        }
         struct MCResult
         {
             public const int WRITE_TIME_OUT = -1;
@@ -38,6 +43,7 @@ namespace ComportMCInterface
             public const int CONNECTION_ERR = -3;
             public const int SUSSCESS = 0;
         }
+
         public MainForm()
         {
             InitializeComponent();
@@ -110,7 +116,7 @@ namespace ComportMCInterface
             logDisplay("[System] Application start");
             while (_AppRunning)
             {
-                Thread.Sleep(5);
+                Thread.Sleep(2);
                 switch (_sqMain)
                 {
                     case 0: // wait connecttion
@@ -120,20 +126,28 @@ namespace ComportMCInterface
                         }
                     case 1: //wait serial data
                         {
-                            if((DateTime.Now - _StepTimer).TotalMilliseconds > 1000)
+                            if ((DateTime.Now - _StepTimer).TotalMilliseconds > 1000)
                             {
                                 _AliveBit = _AliveBit == 0 ? 1 : 0;
-                                int iResult = WriteDevice("D 10", (short)_AliveBit);
+                                int iResult = WriteDevice(PLCMapping.ALIVE_BIT, (short)_AliveBit);
                                 if (iResult == MCResult.CONNECTION_ERR || iResult == MCResult.WRITE_TIME_OUT)
                                 {
                                     string sError = iResult == MCResult.CONNECTION_ERR ? "connection error" : "wait time over";
                                     logDisplay("[PLC] Server " + sError);
                                     _sqMain = 5;
                                 }
-                                else if(iResult != MCResult.SUSSCESS) logDisplay("[PLC] Set Alive register D10 error. code 0x" + iResult.ToString("X"));
+                                else if (iResult != MCResult.SUSSCESS) logDisplay("[PLC] Set Alive register D10 error. code 0x" + iResult.ToString("X"));
                                 _StepTimer = DateTime.Now;
                             }
                             else if (_ComportReceiveData != string.Empty) _sqMain++;
+
+                            short iCommand = 0;
+                            if (ReadDevice(PLCMapping.ACTION_BIT, out iCommand) == MCResult.SUSSCESS)
+                            {
+                                if (iCommand == 1) sr_ComPort.WriteLine("Start");
+                                else if (iCommand == 2) sr_ComPort.WriteLine("Stop");
+                                WriteDevice(PLCMapping.ACTION_BIT, 0);
+                            }
                             break;
                         }
                     case 2: // check data format
@@ -162,7 +176,7 @@ namespace ComportMCInterface
                                     {
                                         _SerialData[i] = _SerialData[i].Trim();
                                         if (short.TryParse(_SerialData[i], out _iBuffer)) dataSend[i] = _iBuffer;
-                                        else
+                                        else if(i == 0 && _iBuffer >= 3)
                                         {
                                             logDisplay("[Vision] Data format is not correct " + _SerialData[i]);
                                             _sqMain = 1;
